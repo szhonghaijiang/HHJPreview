@@ -176,10 +176,8 @@ public class HHJPreview: UIView, UIScrollViewDelegate {
             getCurrentIamgeView(direction:.left)
             for (_, imageView) in imageViews.enumerated() {
                 if imageView.frame.origin.x-scrollView.contentOffset.x<scrollView.bounds.size.width*1.5 {
-//                    imageView.x += scrollView.width
                     imageView.frame = CGRect(x: imageView.frame.origin.x + scrollView.bounds.size.width, y: imageView.frame.origin.y, width: imageView.bounds.size.width, height: imageView.bounds.size.height)
                 } else {
-//                    imageView.x = 0
                     imageView.frame = CGRect(x: 0, y: imageView.frame.origin.y, width: imageView.bounds.size.width, height: imageView.bounds.size.height)
                     var index = currentImageView.index-1
                     if index < 0 {
@@ -187,17 +185,14 @@ public class HHJPreview: UIView, UIScrollViewDelegate {
                     }
                     imageView.index = index
                     setImageView(imageView, forImageAt: index)
-                    //                    imageView.imageUrl = imageUrls[index]
                 }
             }
         } else if scrollView.contentOffset.x >= 2*scrollView.bounds.size.width {
             getCurrentIamgeView(direction: .right)
             for (_, imageView) in imageViews.enumerated() {
                 if scrollView.contentOffset.x-imageView.frame.origin.x<scrollView.bounds.size.width*1.5 {
-//                    imageView.x -= scrollView.width
                     imageView.frame = CGRect(x: imageView.frame.origin.x-scrollView.bounds.size.width, y: imageView.frame.origin.y, width: imageView.bounds.size.width, height: imageView.bounds.size.height)
                 } else {
-//                    imageView.x = scrollView.width * 2
                     imageView.frame = CGRect(x: scrollView.bounds.size.width*2, y: imageView.frame.origin.y, width: imageView.bounds.size.width, height: imageView.bounds.size.height)
                     var index = currentImageView.index+1
                     if index >= imageCount {
@@ -205,7 +200,6 @@ public class HHJPreview: UIView, UIScrollViewDelegate {
                     }
                     imageView.index = index
                     setImageView(imageView, forImageAt: index)
-                    //                    imageView.imageUrl = imageUrls[index]
                 }
             }
         }
@@ -346,11 +340,11 @@ class SGPreviewScrollView: UIView, UIScrollViewDelegate {
     func reloadImageViewContent() {
         
         if let myImage = imageView.image {
-            imageView.bounds.size = CGSize(width: bounds.size.width, height: myImage.size.height*bounds.size.width/myImage.size.width)
+            imageView.frame = CGRect(x: 0, y: 0, width: bounds.size.width, height: myImage.size.height*bounds.size.width/myImage.size.width)
             if imageView.bounds.height < bounds.size.height {
-                imageView.frame.origin.y = (bounds.size.height-imageView.bounds.size.height)*0.5
+                imageView.frame = CGRect(x: 0, y: (bounds.size.height-imageView.bounds.size.height)*0.5, width: imageView.bounds.size.width, height: imageView.bounds.size.height)
             } else {
-                imageView.frame.origin.y = 0
+                imageView.frame = CGRect(x: 0, y: 0, width: imageView.bounds.size.width, height: imageView.bounds.size.height)
             }
             scrollView.contentSize = imageView.bounds.size
         } else {
