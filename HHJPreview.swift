@@ -44,6 +44,15 @@ public class HHJPreview: UIView, UIScrollViewDelegate {
     fileprivate var longPressIng = false
     
     
+    /// 初始化方法
+    ///
+    /// - Parameters:
+    ///   - from: 从哪个imgeView弹出的放大图片，如果有值，则有一个放大的动画，如果传nil，则动画较为生硬
+    ///   - imageCount: 要放大的图片数量
+    ///   - offSet: 当前放大的是第几张图片
+    ///   - dataSource: 数据源，当展示到这个图片是，会回调这个blcok，使用者需要在这个block内部为UIImageView设置图片，设置完成后请调用finishBlock
+    ///   - dismissAt: 消失时，消失到哪个视图上面去，也会有一个动画
+    ///   - longPressBlock: 长按的回调，在长按结束后请调用finishBlock
     public init(from: UIImageView?, imageCount: Int, offSet: Int = 0, dataSource:@escaping (_ imageView: UIImageView, _ index: Int, _ finishBlock:@escaping () -> Void) -> Void, dismissAt: ((_ index: Int) -> UIView?)?, longPressBlock: ((_ index: Int, _ imageView: UIImageView, _ finishBlock:@escaping () -> Void) -> Void)?) {
         self.dataSourceBlock = dataSource
         self.imageCount = imageCount
@@ -423,7 +432,11 @@ class SGPreviewScrollView: UIView, UIScrollViewDelegate {
         animateImageView = delegate.willStartDragging()
         animateImageView.image = imageView.image
         frameOfOriginalOfImageView = imageView.convert(imageView.bounds, to: UIApplication.shared.keyWindow)
-        startPoint = CGPoint(x: (point.x - frameOfOriginalOfImageView.origin.x) / frameOfOriginalOfImageView.size.width, y: (point.y - frameOfOriginalOfImageView.origin.y) / frameOfOriginalOfImageView.size.height)
+        if frameOfOriginalOfImageView.size.width == 0 || frameOfOriginalOfImageView.size.height == 0 {
+            startPoint = .zero
+        } else {
+            startPoint = CGPoint(x: (point.x - frameOfOriginalOfImageView.origin.x) / frameOfOriginalOfImageView.size.width, y: (point.y - frameOfOriginalOfImageView.origin.y) / frameOfOriginalOfImageView.size.height)
+        }
         animateImageView.frame = frameOfOriginalOfImageView
         totalOffset = .zero
         UIApplication.shared.keyWindow?.addSubview(animateImageView)
@@ -434,9 +447,7 @@ class SGPreviewScrollView: UIView, UIScrollViewDelegate {
         startDragging = false
         delegate.didEndDragging()
         
-        if animateImageView.bounds.size.height < frameOfOriginalOfImageView.height * 0.75 {
-            delegate.tapDismiss(animationImagView: animateImageView)
-        } else {
+        if animateImageView.bounds.size.height > frameOfOriginalOfImageView.height * 0.75 {
             UIView.animate(withDuration: 0.25, animations: {[weak self] in
                 guard let weakSelf = self else {
                     return
@@ -448,6 +459,8 @@ class SGPreviewScrollView: UIView, UIScrollViewDelegate {
                     return
                 }
             }
+        } else {
+            delegate.tapDismiss(animationImagView: animateImageView)
         }
     }
     
