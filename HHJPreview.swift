@@ -239,7 +239,10 @@ extension HHJPreview: HHJSubPreviewProtocol {
                 self.addSubview(tempDumpImageView)
                 
                 let size = currentImageView.imageView.bounds.size
-                let fromRectHeight = bounds.size.width/size.width*size.height
+                var fromRectHeight = bounds.size.width/size.width*size.height
+                if fromRectHeight.isNaN {
+                    fromRectHeight = 0
+                }
                 tempDumpImageView.frame = CGRect(x: 0, y: (bounds.size.height-fromRectHeight)*0.5, width: bounds.size.width, height: fromRectHeight);
             }
             backgroundColor = UIColor.clear
