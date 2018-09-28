@@ -243,7 +243,8 @@ extension HHJPreview: HHJSubPreviewProtocol {
             if dumpImageView == nil {
                 let tempDumpImageView = UIImageView()
                 tempDumpImageView.image = currentImageView.imageView.image
-                tempDumpImageView.contentMode = currentImageView.contentMode
+                tempDumpImageView.contentMode = dismissFormView.contentMode
+                tempDumpImageView.clipsToBounds = true
                 dumpImageView = tempDumpImageView
                 self.addSubview(tempDumpImageView)
                 
