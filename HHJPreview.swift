@@ -335,6 +335,11 @@ class SGPreviewScrollView: UIView, UIScrollViewDelegate {
         scrollView.delegate = self
         scrollView.alwaysBounceVertical = true
         scrollView.alwaysBounceHorizontal = true
+        if #available(iOS 11.0, *) {
+            scrollView.contentInsetAdjustmentBehavior = .never
+        } else {
+            // Fallback on earlier versions
+        }
         addGestureRecognizer(UILongPressGestureRecognizer(target: self, action: #selector(SGPreviewScrollView.longPress(_:))))
         let doubleTap = UITapGestureRecognizer(target: self, action: #selector(SGPreviewScrollView.doubleTap(_:)))
         doubleTap.numberOfTapsRequired = 2
