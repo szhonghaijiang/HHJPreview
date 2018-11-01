@@ -39,6 +39,7 @@ public class HHJPreview: UIView, UIScrollViewDelegate {
     let imageCount: Int
     /// 设置数据源，finishBlock请在设置图片完成后调用
     private let dataSourceBlock: (_ imageView: UIImageView, _ index: Int, _ finishBlock:@escaping () -> Void) -> Void
+    private let infiniteScrollView: Bool
     fileprivate var dismissAt: ((_ index: Int) -> UIView?)?
     fileprivate var longPressBlock: ((_ index: Int, _ imageView: UIImageView, _ finishBlock:@escaping () -> Void) -> Void)?
     fileprivate var longPressIng = false
@@ -53,9 +54,10 @@ public class HHJPreview: UIView, UIScrollViewDelegate {
     ///   - dataSource: 数据源，当展示到这个图片是，会回调这个blcok，使用者需要在这个block内部为UIImageView设置图片，设置完成后请调用finishBlock
     ///   - dismissAt: 消失时，消失到哪个视图上面去，也会有一个动画
     ///   - longPressBlock: 长按的回调，在长按结束后请调用finishBlock
-    public init(from: UIImageView?, imageCount: Int, offSet: Int = 0, dataSource:@escaping (_ imageView: UIImageView, _ index: Int, _ finishBlock:@escaping () -> Void) -> Void, dismissAt: ((_ index: Int) -> UIView?)?, longPressBlock: ((_ index: Int, _ imageView: UIImageView, _ finishBlock:@escaping () -> Void) -> Void)?) {
+    public init(from: UIImageView?, imageCount: Int, offSet: Int = 0, infiniteScrollView: Bool = false,  dataSource:@escaping (_ imageView: UIImageView, _ index: Int, _ finishBlock:@escaping () -> Void) -> Void, dismissAt: ((_ index: Int) -> UIView?)?, longPressBlock: ((_ index: Int, _ imageView: UIImageView, _ finishBlock:@escaping () -> Void) -> Void)?) {
         self.dataSourceBlock = dataSource
         self.imageCount = imageCount
+        self.infiniteScrollView = infiniteScrollView
         super.init(frame: UIScreen.main.bounds)
         self.dismissAt = dismissAt
         self.longPressBlock = longPressBlock
@@ -70,13 +72,21 @@ public class HHJPreview: UIView, UIScrollViewDelegate {
     /// 初始化所有视图
     fileprivate func loadSubView(from: UIImageView?, offSet: Int = 0) {
         scrollView.frame = bounds
-        scrollView.contentSize = CGSize(width: 3*scrollView.bounds.size.width, height: 0)
         scrollView.showsVerticalScrollIndicator = false
         scrollView.showsHorizontalScrollIndicator = false
         scrollView.backgroundColor = UIColor.clear
         scrollView.isPagingEnabled = true
         scrollView.delegate = self
-        for _ in 0..<3 {
+        var imageViewCount = 3
+        if !infiniteScrollView {
+            imageViewCount = imageCount
+            scrollView.contentOffset = CGPoint(x: scrollView.bounds.size.width*CGFloat(offSet), y: 0)
+        } else {
+            
+            scrollView.contentOffset = CGPoint(x: scrollView.bounds.size.width, y: 0)
+        }
+        scrollView.contentSize = CGSize(width: CGFloat(imageViewCount)*scrollView.bounds.size.width, height: 0)
+        for _ in 0..<imageViewCount {
             let imageView = SGPreviewScrollView(frame: scrollView.bounds)
             imageView.delegate = self
             imageViews.append(imageView)
@@ -128,17 +138,16 @@ public class HHJPreview: UIView, UIScrollViewDelegate {
             if let dumpImageView = dump {
                 dumpImageView.removeFromSuperview()
                 weakSelf.addSubview(weakSelf.scrollView)
+                weakSelf.addSubview(weakSelf.pageControl)
             }
         }
         
         UIApplication.shared.keyWindow?.addSubview(self)
-        addSubview(pageControl)
         reloadSubView(offSet: offSet)
     }
     
     /// 当获得新的数据调用该方法刷新一下显示，第一次创建本对象时不需要调用，会自动调用
     func reloadSubView(offSet: Int = 0) {
-        scrollView.contentOffset = CGPoint(x: scrollView.bounds.size.width, y: 0)
         if imageCount <= 1 {
             scrollView.isScrollEnabled = false;
         } else {
@@ -146,12 +155,14 @@ public class HHJPreview: UIView, UIScrollViewDelegate {
         }
         for (index, imageView) in imageViews.enumerated() {
             var bannerModelIndex = index-1+offSet
+            if !infiniteScrollView {
+                bannerModelIndex = index
+            }
             if bannerModelIndex < 0 {
                 bannerModelIndex = imageCount-1
             } else if (bannerModelIndex >= imageCount) {
                 bannerModelIndex = 0
             }
-            
             setImageView(imageView, forImageAt: bannerModelIndex)
             imageView.index = bannerModelIndex
             imageView.frame.origin.x = scrollView.bounds.size.width * CGFloat(index)
@@ -159,6 +170,7 @@ public class HHJPreview: UIView, UIScrollViewDelegate {
                 currentImageView = imageView
             }
         }
+        
         pageControl.numberOfPages = imageCount
         pageControl.currentPage = offSet
         let pageControlSizeHeight:CGFloat = 21
@@ -177,9 +189,19 @@ public class HHJPreview: UIView, UIScrollViewDelegate {
     
     //监听滑动事件，修改显示的各种东西
     public func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        if !infiniteScrollView {
+            let index = min(max(Int((scrollView.contentOffset.x+scrollView.bounds.size.width*0.5)/scrollView.bounds.size.width), 0), imageCount)
+            setPageControlCurrentIndex(index: index)
+            if imageViews.count > index {
+                currentImageView = imageViews[index]
+            }
+            return
+        }
+        
         if scrollView.contentOffset.x > 0 && scrollView.contentOffset.x < 2*scrollView.bounds.size.width {
             return
         }
+        
         
         if scrollView.contentOffset.x <= 0 {
             getCurrentIamgeView(direction:.left)
@@ -223,14 +245,14 @@ public class HHJPreview: UIView, UIScrollViewDelegate {
         for (_, imageView) in imageViews.enumerated() {
             if (imageView.frame.origin.x == currentImageViewX) {
                 currentImageView = imageView
-                setPageControlCurrentIndex()
+                setPageControlCurrentIndex(index: currentImageView.index)
                 break
             }
         }
     }
     
-    fileprivate func setPageControlCurrentIndex() {
-        pageControl.currentPage = currentImageView.index
+    fileprivate func setPageControlCurrentIndex(index: Int) {
+        pageControl.currentPage = index
     }
 }
 
