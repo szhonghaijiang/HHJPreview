@@ -261,26 +261,36 @@ extension HHJPreview: HHJSubPreviewProtocol {
         var dumpImageView = animationImagView
         var descRect = CGRect.zero
         if let realDismissAtBlock = dismissAt, let dismissFormView = realDismissAtBlock(currentImageView.index) {
-            descRect = dismissFormView.convert(dismissFormView.bounds, to: self)
-            if dumpImageView == nil {
-                let tempDumpImageView = UIImageView()
-                tempDumpImageView.image = currentImageView.imageView.image
-                tempDumpImageView.contentMode = dismissFormView.contentMode
-                tempDumpImageView.clipsToBounds = true
-                dumpImageView = tempDumpImageView
-                self.addSubview(tempDumpImageView)
-                
-                let size = currentImageView.imageView.bounds.size
-                var fromRectHeight = bounds.size.width/size.width*size.height
-                if fromRectHeight.isNaN {
-                    fromRectHeight = 0
+            DispatchQueue.main.async {[weak self] in
+                guard let weakSelf = self else {
+                    return
                 }
-                tempDumpImageView.frame = CGRect(x: 0, y: (bounds.size.height-fromRectHeight)*0.5, width: bounds.size.width, height: fromRectHeight);
+                descRect = dismissFormView.convert(dismissFormView.bounds, to: self)
+                if dumpImageView == nil {
+                    let tempDumpImageView = UIImageView()
+                    tempDumpImageView.image = weakSelf.currentImageView.imageView.image
+                    tempDumpImageView.contentMode = dismissFormView.contentMode
+                    tempDumpImageView.clipsToBounds = true
+                    dumpImageView = tempDumpImageView
+                    weakSelf.addSubview(tempDumpImageView)
+                    
+                    let size = weakSelf.currentImageView.imageView.bounds.size
+                    var fromRectHeight = weakSelf.bounds.size.width/size.width*size.height
+                    if fromRectHeight.isNaN {
+                        fromRectHeight = 0
+                    }
+                    tempDumpImageView.frame = CGRect(x: 0, y: (weakSelf.bounds.size.height-fromRectHeight)*0.5, width: weakSelf.bounds.size.width, height: fromRectHeight);
+                }
+                weakSelf.backgroundColor = UIColor.clear
+                weakSelf.scrollView.removeFromSuperview()
+                weakSelf.dimissFromDescRect(descRect, dumpImageView: dumpImageView)
             }
-            backgroundColor = UIColor.clear
-            scrollView.removeFromSuperview()
+        } else {
+            dimissFromDescRect(descRect, dumpImageView: dumpImageView)
         }
-        
+    }
+    
+    func dimissFromDescRect(_ descRect:CGRect, dumpImageView: UIImageView?) {
         UIView.animate(withDuration: 0.25, delay: 0, options: UIViewAnimationOptions(rawValue: 7), animations: {
             if let iv = dumpImageView {
                 if descRect != .zero {
