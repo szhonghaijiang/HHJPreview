@@ -464,6 +464,9 @@ class SGPreviewScrollView: UIView, UIScrollViewDelegate {
         if scrollView.panGestureRecognizer.numberOfTouches > 1 {
             return
         }
+        if scrollView.contentOffset.y > 0 {
+            return
+        }
         startDragging = true
         let point = scrollView.panGestureRecognizer.location(in: self)
         lastPoint = point
