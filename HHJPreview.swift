@@ -71,7 +71,7 @@ public class HHJPreview: UIView, UIScrollViewDelegate {
     
     /// 初始化所有视图
     fileprivate func loadSubView(from: UIImageView?, offSet: Int = 0) {
-        scrollView.frame = bounds
+        scrollView.frame = CGRect(x: 0, y: 0, width: bounds.size.width+10, height: bounds.size.height)
         scrollView.showsVerticalScrollIndicator = false
         scrollView.showsHorizontalScrollIndicator = false
         scrollView.backgroundColor = UIColor.clear
@@ -82,12 +82,11 @@ public class HHJPreview: UIView, UIScrollViewDelegate {
             imageViewCount = imageCount
             scrollView.contentOffset = CGPoint(x: scrollView.bounds.size.width*CGFloat(offSet), y: 0)
         } else {
-            
             scrollView.contentOffset = CGPoint(x: scrollView.bounds.size.width, y: 0)
         }
         scrollView.contentSize = CGSize(width: CGFloat(imageViewCount)*scrollView.bounds.size.width, height: 0)
         for _ in 0..<imageViewCount {
-            let imageView = SGPreviewScrollView(frame: scrollView.bounds)
+            let imageView = SGPreviewScrollView(frame: bounds)
             imageView.delegate = self
             imageViews.append(imageView)
             scrollView.addSubview(imageView)
@@ -175,16 +174,23 @@ public class HHJPreview: UIView, UIScrollViewDelegate {
         pageControl.currentPage = offSet
         let pageControlSizeHeight:CGFloat = 21
         let pageControlSize = pageControl.size(forNumberOfPages: imageCount)
-        pageControl.frame = CGRect(x: (bounds.size.width-pageControlSize.width)*0.5, y: bounds.size.height-pageControlSizeHeight, width: pageControlSize.width, height: pageControlSizeHeight)
+        var bottom: CGFloat = 0
+        if #available(iOS 11.0, *), let window = UIApplication.shared.keyWindow {
+            bottom = window.safeAreaInsets.bottom
+        }
+        pageControl.frame = CGRect(x: (bounds.size.width-pageControlSize.width)*0.5, y: bounds.size.height-pageControlSizeHeight-bottom, width: pageControlSize.width, height: pageControlSizeHeight)
     }
     
     private func setImageView(_ imageView: SGPreviewScrollView, forImageAt index:Int) {
+        imageView.addLoadView()
         dataSourceBlock(imageView.imageView, index) {[weak imageView] in
             guard let weakImageView = imageView else {
                 return
             }
+            weakImageView.stopLoadView()
             weakImageView.reloadImageViewContent()
         }
+        imageView.reloadImageViewContent()
     }
     
     //监听滑动事件，修改显示的各种东西
@@ -345,6 +351,13 @@ extension HHJPreview: HHJSubPreviewProtocol {
 class SGPreviewScrollView: UIView, UIScrollViewDelegate {
     let imageView = UIImageView()
     let scrollView = UIScrollView()
+    lazy var loadingView : UIActivityIndicatorView = {
+        let tempLoadView = UIActivityIndicatorView(activityIndicatorStyle: .white)
+        tempLoadView.hidesWhenStopped = true
+        tempLoadView.stopAnimating()
+        addSubview(tempLoadView)
+        return tempLoadView
+    }()
     fileprivate weak var delegate: HHJSubPreviewProtocol!
     
     /// 拖动动画相关
@@ -367,6 +380,7 @@ class SGPreviewScrollView: UIView, UIScrollViewDelegate {
         scrollView.delegate = self
         scrollView.alwaysBounceVertical = true
         scrollView.alwaysBounceHorizontal = true
+        clipsToBounds = true
         if #available(iOS 11.0, *) {
             scrollView.contentInsetAdjustmentBehavior = .never
         } else {
@@ -387,8 +401,18 @@ class SGPreviewScrollView: UIView, UIScrollViewDelegate {
         fatalError("init(coder:) has not been implemented")
     }
     
+    /// 添加一个菊花转
+    func addLoadView() {
+        loadingView.center = center
+        loadingView.startAnimating()
+    }
+    
+    /// 停止一个菊花转
+    func stopLoadView() {
+        loadingView.stopAnimating()
+    }
+    
     func reloadImageViewContent() {
-        
         if let myImage = imageView.image {
             imageView.frame = CGRect(x: 0, y: 0, width: bounds.size.width, height: myImage.size.height*bounds.size.width/myImage.size.width)
             if imageView.bounds.height < bounds.size.height {
@@ -407,7 +431,7 @@ class SGPreviewScrollView: UIView, UIScrollViewDelegate {
     override var frame: CGRect {
         didSet {
             if bounds.equalTo(imageView.frame) == false {
-                scrollView.frame = bounds
+                scrollView.frame = CGRect(x: 0, y: 0, width: bounds.size.width+10, height: bounds.size.height)
             }
         }
     }
