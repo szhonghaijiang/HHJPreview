@@ -112,7 +112,11 @@ public class HHJPreview: UIView, UIScrollViewDelegate {
                 size = image.size
             }
             let destRectHeight = bounds.size.width/size.width*size.height
-            dstRect = CGRect(x: 0, y: (bounds.size.height-destRectHeight)*0.5, width: bounds.size.width, height: destRectHeight);
+            if destRectHeight < bounds.size.height {
+                dstRect = CGRect(x: 0, y: (bounds.size.height-destRectHeight)*0.5, width: bounds.size.width, height: destRectHeight);
+            } else {
+                dstRect = CGRect(x: 0, y: 0, width: bounds.size.width, height: destRectHeight);
+            }
         } else {
             addSubview(scrollView)
             scrollView.alpha = 0
