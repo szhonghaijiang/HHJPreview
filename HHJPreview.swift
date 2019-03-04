@@ -43,6 +43,10 @@ public class HHJPreview: UIView, UIScrollViewDelegate {
     fileprivate var dismissAt: ((_ index: Int) -> UIView?)?
     fileprivate var longPressBlock: ((_ index: Int, _ imageView: UIImageView, _ finishBlock:@escaping () -> Void) -> Void)?
     fileprivate var longPressIng = false
+    /// 滑动消失的回调
+    public var dragToDismiss: ((_ dragging: Bool) -> Void)?
+    /// 滑动到某一张图片的回调
+    public var scrollViewAt: ((_ index: Int) -> Void?)?
     
     
     /// 初始化方法
@@ -54,14 +58,14 @@ public class HHJPreview: UIView, UIScrollViewDelegate {
     ///   - dataSource: 数据源，当展示到这个图片是，会回调这个blcok，使用者需要在这个block内部为UIImageView设置图片，设置完成后请调用finishBlock
     ///   - dismissAt: 消失时，消失到哪个视图上面去，也会有一个动画
     ///   - longPressBlock: 长按的回调，在长按结束后请调用finishBlock
-    public init(from: UIImageView?, imageCount: Int, offSet: Int = 0, infiniteScrollView: Bool = false,  dataSource:@escaping (_ imageView: UIImageView, _ index: Int, _ finishBlock:@escaping () -> Void) -> Void, dismissAt: ((_ index: Int) -> UIView?)?, longPressBlock: ((_ index: Int, _ imageView: UIImageView, _ finishBlock:@escaping () -> Void) -> Void)?) {
+    public init(from: UIImageView?, superView: UIView? = nil, imageCount: Int, offSet: Int = 0, infiniteScrollView: Bool = false,  dataSource:@escaping (_ imageView: UIImageView, _ index: Int, _ finishBlock:@escaping () -> Void) -> Void, dismissAt: ((_ index: Int) -> UIView?)?, longPressBlock: ((_ index: Int, _ imageView: UIImageView, _ finishBlock:@escaping () -> Void) -> Void)?) {
         self.dataSourceBlock = dataSource
         self.imageCount = imageCount
         self.infiniteScrollView = infiniteScrollView
         super.init(frame: UIScreen.main.bounds)
         self.dismissAt = dismissAt
         self.longPressBlock = longPressBlock
-        loadSubView(from: from, offSet: offSet)
+        loadSubView(from: from, offSet: offSet, superView: superView)
     }
     
     
@@ -70,7 +74,7 @@ public class HHJPreview: UIView, UIScrollViewDelegate {
     }
     
     /// 初始化所有视图
-    fileprivate func loadSubView(from: UIImageView?, offSet: Int = 0) {
+    fileprivate func loadSubView(from: UIImageView?, offSet: Int = 0, superView: UIView? = nil) {
         scrollView.frame = CGRect(x: 0, y: 0, width: bounds.size.width+10, height: bounds.size.height)
         scrollView.showsVerticalScrollIndicator = false
         scrollView.showsHorizontalScrollIndicator = false
@@ -144,8 +148,11 @@ public class HHJPreview: UIView, UIScrollViewDelegate {
                 weakSelf.addSubview(weakSelf.pageControl)
             }
         }
-        
-        UIApplication.shared.keyWindow?.addSubview(self)
+        if let tempSuperView = superView {
+            tempSuperView.addSubview(self)
+        } else {
+            UIApplication.shared.keyWindow?.addSubview(self)
+        }
         reloadSubView(offSet: offSet)
     }
     
@@ -201,7 +208,7 @@ public class HHJPreview: UIView, UIScrollViewDelegate {
     public func scrollViewDidScroll(_ scrollView: UIScrollView) {
         if !infiniteScrollView {
             let index = min(max(Int((scrollView.contentOffset.x+scrollView.bounds.size.width*0.5)/scrollView.bounds.size.width), 0), imageCount)
-            setPageControlCurrentIndex(index: index)
+            afterScrollViewToIndex(index: index)
             if imageViews.count > index {
                 currentImageView = imageViews[index]
             }
@@ -255,10 +262,18 @@ public class HHJPreview: UIView, UIScrollViewDelegate {
         for (_, imageView) in imageViews.enumerated() {
             if (imageView.frame.origin.x == currentImageViewX) {
                 currentImageView = imageView
-                setPageControlCurrentIndex(index: currentImageView.index)
+                afterScrollViewToIndex(index: currentImageView.index)
                 break
             }
         }
+    }
+    
+    //// 处理滑动到某一张图片后的事件
+    fileprivate func afterScrollViewToIndex(index: Int) {
+        if pageControl.currentPage != index, let block = scrollViewAt {
+            block(index)
+        }
+        setPageControlCurrentIndex(index: index)
     }
     
     fileprivate func setPageControlCurrentIndex(index: Int) {
@@ -326,12 +341,21 @@ extension HHJPreview: HHJSubPreviewProtocol {
     
     func willStartDragging() -> UIImageView {
         scrollView.isScrollEnabled = false
+        dragToDismissNoti(drag: true)
         return animateImageView
     }
     
     func didEndDragging() {
         if imageCount > 1 {
             scrollView.isScrollEnabled = true
+        }
+        dragToDismissNoti(drag: false)
+    }
+    
+    /// 通知上层是否正在移动
+    func dragToDismissNoti(drag: Bool) {
+        if let blokc = dragToDismiss {
+            blokc(drag)
         }
     }
     
@@ -496,19 +520,20 @@ class SGPreviewScrollView: UIView, UIScrollViewDelegate {
             return
         }
         startDragging = true
-        let point = scrollView.panGestureRecognizer.location(in: self)
+        var point = scrollView.panGestureRecognizer.location(in: self)
         lastPoint = point
         animateImageView = delegate.willStartDragging()
         animateImageView.image = imageView.image
-        frameOfOriginalOfImageView = imageView.convert(imageView.bounds, to: UIApplication.shared.keyWindow)
+        frameOfOriginalOfImageView = imageView.convert(imageView.bounds, to: self.superview)
         if frameOfOriginalOfImageView.size.width == 0 || frameOfOriginalOfImageView.size.height == 0 {
             startPoint = .zero
         } else {
-            startPoint = CGPoint(x: (point.x - frameOfOriginalOfImageView.origin.x) / frameOfOriginalOfImageView.size.width, y: (point.y - frameOfOriginalOfImageView.origin.y) / frameOfOriginalOfImageView.size.height)
+            startPoint = CGPoint(x: (point.x) / frameOfOriginalOfImageView.size.width, y: (point.y - frameOfOriginalOfImageView.origin.y) / frameOfOriginalOfImageView.size.height)
         }
         animateImageView.frame = frameOfOriginalOfImageView
+        print("1")
         totalOffset = .zero
-        UIApplication.shared.keyWindow?.addSubview(animateImageView)
+        self.superview?.addSubview(animateImageView)
         imageView.isHidden = true
     }
     
@@ -525,6 +550,7 @@ class SGPreviewScrollView: UIView, UIScrollViewDelegate {
                     return
                 }
                 weakSelf.animateImageView.frame = weakSelf.frameOfOriginalOfImageView
+                print("2")
                 weakSelf.delegate.didDragging(alpha: 1)
             }) {[weak self] (finished) in
                 guard let _ = self else {
@@ -552,7 +578,7 @@ class SGPreviewScrollView: UIView, UIScrollViewDelegate {
             return
         }
         
-        let point = scrollView.panGestureRecognizer.location(in: self)
+        var point = scrollView.panGestureRecognizer.location(in: self)
         let offSetX = point.x - lastPoint.x
         let offSetY = point.y - lastPoint.y
         
@@ -560,7 +586,7 @@ class SGPreviewScrollView: UIView, UIScrollViewDelegate {
         var scale = 1 - totalOffset.height / bounds.size.height
         scale = min(max(scale, 0), 1)
         let animationSzie = CGSize(width: frameOfOriginalOfImageView.size.width * scale, height: frameOfOriginalOfImageView.size.height * scale)
-        animateImageView.frame = CGRect(x: point.x - animationSzie.width * startPoint.x, y: point.y - animationSzie.height * startPoint.y, width: animationSzie.width, height: animationSzie.height)
+        animateImageView.frame = CGRect(x: point.x - animationSzie.width * startPoint.x + self.frame.origin.x, y: point.y - animationSzie.height * startPoint.y, width: animationSzie.width, height: animationSzie.height)
         lastPoint = point
         delegate.didDragging(alpha: scale)
     }
