@@ -27,7 +27,10 @@ public class HHJPreview: UIView, UIScrollViewDelegate {
     fileprivate let scrollView = UIScrollView()
     fileprivate var currentImageView: SGPreviewScrollView!
     fileprivate let pageControl = UIPageControl()
-    public var currentPageIndicatorTintColor = UIColor(red: 255.0/255.0, green: 102.0/255.0, blue: 0.0/255.0, alpha: 1.0)
+//    public var currentPageIndicatorTintColor = UIColor(red: 255.0/255.0, green: 255.0/255.0, blue: 255.0/255.0, alpha: 1.0)
+    public var currentPageIndicatorTintColor = UIColor(red: 255.0/255.0, green: 255.0/255.0, blue: 255.0/255.0, alpha: 1.0)
+
+
     public var pageControlerTintColor = UIColor.gray
     lazy var animateImageView: UIImageView = {
         let animateImageView = UIImageView()
@@ -47,6 +50,36 @@ public class HHJPreview: UIView, UIScrollViewDelegate {
     public var dragToDismiss: ((_ dragging: Bool) -> Void)?
     /// 滑动到某一张图片的回调
     public var scrollViewAt: ((_ index: Int) -> Void?)?
+    /// 单击的回调，如果实现了这个block则单击不会关掉HHJPreView，需要点击左上角的✘按钮
+    public var tapBlock: ((_ preview: HHJPreview) -> Void)? {
+        didSet {
+            closeButtonBackimageView.isHidden = tapBlock == nil
+        }
+    }
+    /// 关闭按钮
+    lazy var closeButton : UIButton = {
+       let tempCloseButton = UIButton(frame: CGRect(x: 15, y: 15, width: 24, height: 24))
+        tempCloseButton.addTarget(self, action: #selector(HHJPreview.closeButtonClick), for: .touchUpInside)
+        return tempCloseButton
+    }()
+    lazy var closeButtonBackimageView: UIImageView = {
+        let tempCloseButtonBackimageView = UIImageView(frame: CGRect(x: 0, y: 0, width: bounds.size.width, height: 80))
+        tempCloseButtonBackimageView.isUserInteractionEnabled = true
+        tempCloseButtonBackimageView.addSubview(closeButton)
+        tempCloseButtonBackimageView.isHidden = true
+        return tempCloseButtonBackimageView
+    }()
+    /// 关闭按钮的图片
+    public var closeButtonImage: UIImage? {
+        didSet {
+            closeButton.setImage(closeButtonImage, for: .normal)
+        }
+    }
+    public var closeButtonBackImage: UIImage? {
+        didSet {
+            closeButtonBackimageView.image = closeButtonBackImage
+        }
+    }
     
     
     /// 初始化方法
@@ -146,6 +179,9 @@ public class HHJPreview: UIView, UIScrollViewDelegate {
                 dumpImageView.removeFromSuperview()
                 weakSelf.addSubview(weakSelf.scrollView)
                 weakSelf.addSubview(weakSelf.pageControl)
+                if weakSelf.tapBlock != nil {
+                    weakSelf.addSubview(weakSelf.closeButtonBackimageView)
+                }
             }
         }
         if let tempSuperView = superView {
@@ -279,10 +315,31 @@ public class HHJPreview: UIView, UIScrollViewDelegate {
     fileprivate func setPageControlCurrentIndex(index: Int) {
         pageControl.currentPage = index
     }
+    
+    @objc fileprivate func closeButtonClick() {
+        dismissWith(animationImagView: nil)
+    }
 }
 
 extension HHJPreview: HHJSubPreviewProtocol {
     func tapDismiss(animationImagView: UIImageView?) {
+        /// 如果实现了单击的block则不会单击消失
+        if animationImagView == nil, let tempBlock = tapBlock {
+            tempBlock(self)
+            return
+        }
+       dismissWith(animationImagView: animationImagView)
+    }
+    public func hideCloseButtonBackimageView(hide: Bool) {
+        if hide {
+            closeButtonBackimageView.frame = CGRect(x: closeButtonBackimageView.frame.origin.x, y: -closeButtonBackimageView.frame.size.height, width: closeButtonBackimageView.frame.size.width, height: closeButtonBackimageView.frame.size.height)
+        } else {
+            closeButtonBackimageView.frame = CGRect(x: closeButtonBackimageView.frame.origin.x, y: 0, width: closeButtonBackimageView.frame.size.width, height: closeButtonBackimageView.frame.size.height)
+        }
+    }
+    
+    /// 消失
+    func dismissWith(animationImagView: UIImageView?) {
         var dumpImageView = animationImagView
         var descRect = CGRect.zero
         if let realDismissAtBlock = dismissAt, let dismissFormView = realDismissAtBlock(currentImageView.index) {
@@ -387,6 +444,8 @@ class SGPreviewScrollView: UIView, UIScrollViewDelegate {
         return tempLoadView
     }()
     fileprivate weak var delegate: HHJSubPreviewProtocol!
+    // 记录是否开始滑动
+    var beginDragging = false
     
     /// 拖动动画相关
     var startDragging = false
@@ -513,28 +572,7 @@ class SGPreviewScrollView: UIView, UIScrollViewDelegate {
     }
     
     func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
-        if scrollView.panGestureRecognizer.numberOfTouches > 1 {
-            return
-        }
-        if scrollView.contentOffset.y > 0 {
-            return
-        }
-        startDragging = true
-        var point = scrollView.panGestureRecognizer.location(in: self)
-        lastPoint = point
-        animateImageView = delegate.willStartDragging()
-        animateImageView.image = imageView.image
-        frameOfOriginalOfImageView = imageView.convert(imageView.bounds, to: self.superview)
-        if frameOfOriginalOfImageView.size.width == 0 || frameOfOriginalOfImageView.size.height == 0 {
-            startPoint = .zero
-        } else {
-            startPoint = CGPoint(x: (point.x) / frameOfOriginalOfImageView.size.width, y: (point.y - frameOfOriginalOfImageView.origin.y) / frameOfOriginalOfImageView.size.height)
-        }
-        animateImageView.frame = frameOfOriginalOfImageView
-        print("1")
-        totalOffset = .zero
-        self.superview?.addSubview(animateImageView)
-        imageView.isHidden = true
+        beginDragging = true
     }
     
     func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
@@ -550,7 +588,6 @@ class SGPreviewScrollView: UIView, UIScrollViewDelegate {
                     return
                 }
                 weakSelf.animateImageView.frame = weakSelf.frameOfOriginalOfImageView
-                print("2")
                 weakSelf.delegate.didDragging(alpha: 1)
             }) {[weak self] (finished) in
                 guard let _ = self else {
@@ -570,11 +607,29 @@ class SGPreviewScrollView: UIView, UIScrollViewDelegate {
     }
     
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
-        if scrollView.contentOffset.y > 0 {
+        let tempBeginDragging = beginDragging
+        beginDragging = false
+        if scrollView.contentOffset.y >= 0 {
             return
         }
-        
         if !startDragging {
+            if tempBeginDragging {
+                startDragging = true
+                var point = scrollView.panGestureRecognizer.location(in: self)
+                lastPoint = point
+                animateImageView = delegate.willStartDragging()
+                animateImageView.image = imageView.image
+                frameOfOriginalOfImageView = imageView.convert(imageView.bounds, to: self.superview)
+                if frameOfOriginalOfImageView.size.width == 0 || frameOfOriginalOfImageView.size.height == 0 {
+                    startPoint = .zero
+                } else {
+                    startPoint = CGPoint(x: (point.x) / frameOfOriginalOfImageView.size.width, y: (point.y - frameOfOriginalOfImageView.origin.y) / frameOfOriginalOfImageView.size.height)
+                }
+                animateImageView.frame = frameOfOriginalOfImageView
+                totalOffset = .zero
+                self.superview?.addSubview(animateImageView)
+                imageView.isHidden = true
+            }
             return
         }
         
