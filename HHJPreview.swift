@@ -58,7 +58,8 @@ public class HHJPreview: UIView, UIScrollViewDelegate {
     }
     /// 关闭按钮
     lazy var closeButton : UIButton = {
-       let tempCloseButton = UIButton(frame: CGRect(x: 15, y: 15, width: 24, height: 24))
+        
+        let tempCloseButton = UIButton(frame: CGRect(x: 15, y: 30, width: 30, height: 30))
         tempCloseButton.addTarget(self, action: #selector(HHJPreview.closeButtonClick), for: .touchUpInside)
         return tempCloseButton
     }()
@@ -500,6 +501,7 @@ class SGPreviewScrollView: UIView, UIScrollViewDelegate {
     }
     
     func reloadImageViewContent() {
+        scrollView.setZoomScale(1.0, animated: false)
         if let myImage = imageView.image {
             imageView.frame = CGRect(x: 0, y: 0, width: bounds.size.width, height: myImage.size.height*bounds.size.width/myImage.size.width)
             if imageView.bounds.height < bounds.size.height {
@@ -609,7 +611,7 @@ class SGPreviewScrollView: UIView, UIScrollViewDelegate {
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
         let tempBeginDragging = beginDragging
         beginDragging = false
-        if scrollView.contentOffset.y >= 0 {
+        if scrollView.contentOffset.y >= 0 || scrollView.zoomScale >= 1.5 {
             return
         }
         if !startDragging {
