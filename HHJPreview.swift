@@ -617,7 +617,7 @@ class SGPreviewScrollView: UIView, UIScrollViewDelegate {
         if !startDragging {
             if tempBeginDragging {
                 startDragging = true
-                var point = scrollView.panGestureRecognizer.location(in: self)
+                let point = scrollView.panGestureRecognizer.location(in: self)
                 lastPoint = point
                 animateImageView = delegate.willStartDragging()
                 animateImageView.image = imageView.image
@@ -635,7 +635,7 @@ class SGPreviewScrollView: UIView, UIScrollViewDelegate {
             return
         }
         
-        var point = scrollView.panGestureRecognizer.location(in: self)
+        let point = scrollView.panGestureRecognizer.location(in: self)
         let offSetX = point.x - lastPoint.x
         let offSetY = point.y - lastPoint.y
         
